@@ -8,7 +8,7 @@ if __name__ == '__main__':
     
     app_args = [
         'main.py',
-        '--name=YouTubeDownloader',
+        '--name=YoutubeDownloader',
         '--onedir',
         '--windowed',
         '--add-data=web;web',
@@ -24,9 +24,9 @@ if __name__ == '__main__':
     time.sleep(1) # Garantir que o PyInstaller solte os arquivos
     
     # Copiar o ícone diretamente para a pasta do app para usarmos nos atalhos
-    shutil.copy2('icon.ico', 'dist/YouTubeDownloader/icon.ico')
+    shutil.copy2('icon.ico', 'dist/YoutubeDownloader/icon.ico')
     
-    shutil.make_archive('app_dist', 'zip', 'dist/YouTubeDownloader')
+    shutil.make_archive('app_dist', 'zip', 'dist/YoutubeDownloader')
 
 
     # ==========================================================
@@ -56,7 +56,7 @@ if __name__ == '__main__':
 
     installer_args = [
         'installer.py',
-        '--name=Setup - YoutubeDownloader',
+        '--name=YoutubeDownloader',
         '--onefile',
         '--add-data=app_dist.zip;.',
         '--add-data=dist/Uninstall.exe;.',
@@ -67,14 +67,14 @@ if __name__ == '__main__':
     PyInstaller.__main__.run(installer_args)
 
     print("\n Tudo pronto!")
-    print(f"O instalador final esta em: {os.path.join(os.getcwd(), 'dist', 'Setup - YoutubeDownloader.exe')}")
+    print(f"O instalador final esta em: {os.path.join(os.getcwd(), 'dist', 'YoutubeDownloader.exe')}")
 
     print("\n Limpando arquivos temporarios...")
     # Remover .spec intermediários
     import shutil
     try:
         shutil.rmtree('build', ignore_errors=True)
-        for f in ['YouTubeDownloader.spec', 'Setup - YoutubeDownloader.spec', 'Uninstall.spec']:
+        for f in ['YoutubeDownloader.spec', 'Setup - YoutubeDownloader.spec', 'Uninstall.spec']:
             if os.path.exists(f):
                 os.remove(f)
                 
@@ -84,7 +84,7 @@ if __name__ == '__main__':
                 os.remove(f)
         
         # Removemos o diretório onedir
-        app_dir = os.path.join(os.getcwd(), 'dist', 'YouTubeDownloader')
+        app_dir = os.path.join(os.getcwd(), 'dist', 'YoutubeDownloader')
         if os.path.exists(app_dir):
             shutil.rmtree(app_dir, ignore_errors=True)
         print("Limpeza concluída!")

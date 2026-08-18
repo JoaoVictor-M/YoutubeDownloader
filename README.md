@@ -3,7 +3,7 @@
   <h1>YoutubeDownloader</h1>
   <p>Uma aplicação desktop moderna, rápida e elegante para baixar vídeos em 4K e músicas no YouTube.</p>
 
-  <a href="https://github.com/JoaoVictor-M/YoutubeDownloader/releases/download/v1.0.0/Setup%20-%20YoutubeDownloader.exe">
+  <a href="https://github.com/JoaoVictor-M/YoutubeDownloader/releases/download/v1.0.0/YoutubeDownloader.exe">
     <img src="https://img.shields.io/badge/Download-Setup_v1.0.0-blue?style=for-the-badge&logo=windows" alt="Download Windows Installer">
   </a>
 </div>
@@ -26,7 +26,7 @@
 Você não precisa de conhecimentos técnicos ou instalar pacotes de desenvolvimento!
 
 1. Clique no botão de **Download** no topo desta página.
-2. Execute o instalador `Setup - YoutubeDownloader.exe`.
+2. Execute o instalador `YoutubeDownloader.exe`.
 3. Pronto! O atalho será criado na sua Área de Trabalho. Basta abrir, colar o link do vídeo, escolher a qualidade e baixar!
 
 ---

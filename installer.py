@@ -89,7 +89,7 @@ def main():
         
     print_banner()
     
-    install_dir = Path(os.environ["LOCALAPPDATA"]) / "YouTubeDownloader"
+    install_dir = Path(os.environ["LOCALAPPDATA"]) / "YoutubeDownloader"
     bin_dir = install_dir / "bin"
     
     print(f"Diretório de instalação: {install_dir}\n")
@@ -101,7 +101,7 @@ def main():
     # 1. Extrair o aplicativo principal
     print("Instalando aplicativo principal...")
     bundled_zip = get_meipass() / "app_dist.zip"
-    target_exe = install_dir / "YouTubeDownloader.exe"
+    target_exe = install_dir / "YoutubeDownloader.exe"
     
     if bundled_zip.exists():
         import zipfile
