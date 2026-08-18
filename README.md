@@ -31,27 +31,16 @@ Você não precisa de conhecimentos técnicos ou instalar pacotes de desenvolvim
 
 ---
 
-## 💻 Para Desenvolvedores (Build Local)
+## 🍪 Como Baixar Vídeos Restritos (Cookies)
 
-Se você quiser rodar o código-fonte ou modificar o programa localmente, precisará ter o Python instalado.
+Se o vídeo exigir login no YouTube (ex: vídeos privados ou com restrição de idade), você pode usar os seus "cookies" de sessão para permitir que o YoutubeDownloader faça o download:
 
-### 1. Preparar o ambiente
-Abra o terminal na pasta do projeto e instale as dependências:
-```bash
-pip install -r requirements.txt
-```
-
-### 2. Rodar o servidor e a interface
-```bash
-python main.py
-```
-> O servidor será iniciado e a interface será aberta no seu navegador padrão (`http://127.0.0.1:8000`). O processo é finalizado de forma inteligente ao fechar a aba!
-
-### 3. Compilar um novo Instalador (`.exe`)
-Para gerar um novo `Setup - YoutubeDownloader.exe`, basta rodar nosso script de build (você precisará do `Inno Setup` instalado no seu Windows caso também queira compilar o instalador).
-```bash
-python build.py
-```
+1. Instale a extensão **Get cookies.txt LOCALLY** no seu navegador ([Chrome](https://chrome.google.com/webstore/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc) / [Edge](https://microsoftedge.microsoft.com/addons/detail/get-cookiestxt-locally/fdocfofdgofkledjhhmilnkginajbnof)).
+2. Acesse o [YouTube](https://www.youtube.com), faça login com a sua conta e abra qualquer vídeo.
+3. Clique no ícone da extensão (um pequeno 🍪) na barra do seu navegador e clique no botão **Export**.
+4. Ele vai baixar um arquivo de texto. Renomeie esse arquivo para exatamente **`cookies.txt`**.
+5. Coloque o arquivo `cookies.txt` **na mesma pasta** onde está o seu `YoutubeDownloader` (por exemplo, jogue na sua Área de Trabalho junto com o atalho).
+6. Pronto! Abra o programa e inicie o download do vídeo restrito normalmente. O motor de download vai encontrar o arquivo de forma automática.
 
 ---
 
