@@ -1,54 +1,64 @@
-# 🎬 YouTube Downloader PRO (Web Application)
+<div align="center">
+  <img src="web/static/img/favicon.png" width="128" alt="YoutubeDownloader Logo" />
+  <h1>YoutubeDownloader</h1>
+  <p>Uma aplicação desktop moderna, rápida e elegante para baixar vídeos em 4K e músicas no YouTube.</p>
 
-Uma aplicação web moderna, ultrarrápida e responsiva para baixar vídeos em alta resolução (**MP4 em 4K, 1080p, 720p**) e extrair músicas em qualidade máxima (**MP3 a 320 kbps**) do YouTube, com suporte a **FFmpeg local**, **WebSockets em tempo real** e alternância entre **Modo Escuro (Dark) e Claro (Light)**.
+  <a href="https://github.com/JoaoVictor-M/YoutubeDownloader/releases/download/v1.0.0/Setup%20-%20YoutubeDownloader.exe">
+    <img src="https://img.shields.io/badge/Download-Setup_v1.0.0-blue?style=for-the-badge&logo=windows" alt="Download Windows Installer">
+  </a>
+</div>
 
 ---
 
 ## ✨ Principais Recursos
 
-- 🎨 **Design Premium & Glassmorphism**: Interface futurista, com sombras suaves, fontes do Google Fonts (*Outfit* e *Inter*) e efeitos visuais refinados.
-- 🌓 **Modo Escuro & Claro (Dark/Light)**: Alterne com 1 clique entre o tema Dark e Light com animações suaves e persistência da preferência.
-- ⚡ **Performance Imbatível**: Renderização acelerada por hardware via navegador (GPU), eliminando qualquer lentidão.
-- 📡 **Métricas em Tempo Real (WebSockets)**: Barra de progresso neon brilhante com velocidade em `MB/s`, tamanho baixado e tempo estimado restante (`ETA`) atualizados instantaneamente a 60 FPS.
-- 🎥 **Vídeos em MP4**: Seleção visual por chips com todas as resoluções reais do vídeo (**4K / 2160p**, **2K / 1440p**, **Full HD / 1080p**, **HD / 720p**, etc.).
-- 🎵 **Áudio em MP3**: Extração direta em **320 kbps** com metadados e Capa (Thumbnail) embutidas no arquivo.
-- 🛠️ **FFmpeg 1-Clique**: Reconhece o executável na pasta `bin/` ou baixa e configura o build oficial do Windows automaticamente com 1 clique na interface.
-- 📂 **Integração com Windows**: Escolha de pasta e botão para abrir o arquivo baixado diretamente no Windows Explorer.
+- 🎨 **Interface Moderna**: Design limpo com temas Escuro (Dark) e Claro (Light), focado na melhor experiência do usuário.
+- ⚡ **Qualidade Máxima**: Baixe vídeos em MP4 (até **4K / 2160p**) ou extraia apenas o áudio em MP3 (**320 kbps**) com capas e metadados automáticos.
+- 📡 **Monitoramento em Tempo Real**: Barra de progresso ao vivo exibindo velocidade de download (`MB/s`), tamanho baixado e tempo estimado restante (`ETA`).
+- 🤖 **Gestão Autônoma**: O programa baixa e configura automaticamente as dependências necessárias (`FFmpeg` e `Deno`) no primeiro uso.
+- 📂 **Organização Fácil**: Seleção visual do diretório de saída (com diálogos nativos do Windows) e um botão dedicado para abrir o arquivo logo após a conclusão.
+- 🧹 **Histórico Integrado**: Acompanhe o que já foi baixado na sessão e limpe seu histórico com um único clique.
 
 ---
 
-## 🚀 Como Executar
+## 🚀 Como Usar (Para Usuários)
 
-### 1. Instalar as Dependências
-Abra o terminal (PowerShell / Prompt de Comando) na pasta do projeto e execute:
+Você não precisa de conhecimentos técnicos ou instalar pacotes de desenvolvimento!
+
+1. Clique no botão de **Download** no topo desta página.
+2. Execute o instalador `Setup - YoutubeDownloader.exe`.
+3. Pronto! O atalho será criado na sua Área de Trabalho. Basta abrir, colar o link do vídeo, escolher a qualidade e baixar!
+
+---
+
+## 💻 Para Desenvolvedores (Build Local)
+
+Se você quiser rodar o código-fonte ou modificar o programa localmente, precisará ter o Python instalado.
+
+### 1. Preparar o ambiente
+Abra o terminal na pasta do projeto e instale as dependências:
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2. Iniciar o Aplicativo
+### 2. Rodar o servidor e a interface
 ```bash
 python main.py
 ```
-> O servidor iniciará e o seu navegador padrão abrirá automaticamente em `http://127.0.0.1:8000`!
+> O servidor será iniciado e a interface será aberta no seu navegador padrão (`http://127.0.0.1:8000`). O processo é finalizado de forma inteligente ao fechar a aba!
 
----
-
-## 📱 Acessando pelo Celular (Na mesma rede Wi-Fi)
-
-Se você quiser baixar vídeos ou músicas direto pelo smartphone usando a engine do seu PC:
-1. Descubra o IP local do seu computador (no PowerShell: `ipconfig`, ex: `192.168.1.15`).
-2. Execute no PC:
-   ```bash
-   uvicorn src.server:app --host 0.0.0.0 --port 8000
-   ```
-3. No celular, acesse `http://192.168.1.15:8000` no navegador. A interface se adaptará perfeitamente à tela do celular!
+### 3. Compilar um novo Instalador (`.exe`)
+Para gerar um novo `Setup - YoutubeDownloader.exe`, basta rodar nosso script de build (você precisará do `Inno Setup` instalado no seu Windows caso também queira compilar o instalador).
+```bash
+python build.py
+```
 
 ---
 
 ## 🛠️ Tecnologias Utilizadas
 
-* **Python 3.10+ & FastAPI**: Backend assíncrono de altíssima velocidade.
-* **WebSockets**: Comunicação bidirecional contínua para feedback de download em tempo real.
-* **yt-dlp**: Motor de extração de vídeos mais robusto e atualizado do mundo.
-* **FFmpeg**: Conversão de áudio para MP3 (320kbps) e junção de vídeo/áudio em alta definição.
-* **HTML5 / CSS3 Moderno / Vanilla JS**: Design System exclusivo com Glassmorphism, temas Dark/Light e responsividade completa.
+- **Backend**: Python 3, FastAPI, WebSockets
+- **Frontend**: HTML5, CSS3, Vanilla JS
+- **Motor de Download**: yt-dlp (o mais robusto extrator do mercado)
+- **Processamento de Mídia**: FFmpeg (conversão e junção de áudio e vídeo de alta resolução)
+- **Compilação**: PyInstaller e Inno Setup
