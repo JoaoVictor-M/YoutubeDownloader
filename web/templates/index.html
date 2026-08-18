@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YoutubeDownloader</title>
+  <link rel="icon" type="image/png" href="/static/img/favicon.png">
+  
+  <!-- Google Fonts: Outfit & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+  <!-- Background Animated Glows -->
+  <div class="ambient-glow glow-1"></div>
+  <div class="ambient-glow glow-2"></div>
+
+  <div class="app-wrapper">
+    
+    <!-- HEADER -->
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand-icon">
+          <i class="fa-brands fa-youtube"></i>
+        </div>
+        <div class="brand-text">
+          <h1>YouTube Downloader</h1>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <!-- Cookies Upload -->
+        <button id="cookies-btn" class="theme-toggle-btn" aria-label="Upload Cookies Manual" title="Enviar arquivo cookies.txt manualmente (avançado)">
+          <i class="fa-solid fa-cookie-bite"></i>
+        </button>
+        <input type="file" id="cookies-input" accept=".txt" style="display: none;">
+
+        <!-- Dark/Light Mode Switcher -->
+        <button id="theme-toggle" class="theme-toggle-btn" aria-label="Alternar Tema" title="Alternar Tema Claro/Escuro">
+          <i class="fa-solid fa-moon icon-moon"></i>
+          <i class="fa-solid fa-sun icon-sun"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- MAIN CONTAINER -->
+    <main class="main-content">
+
+      <!-- URL INPUT CARD -->
+      <section class="card input-card">
+        <form id="url-form" class="url-form" onsubmit="event.preventDefault(); fetchVideoInfo();">
+          <div class="input-group">
+            <i class="fa-solid fa-link input-icon"></i>
+            <input 
+              type="text" 
+              id="url-input" 
+              placeholder="Cole o link do YouTube aqui (ex: https://www.youtube.com/watch?v=...)" 
+              autocomplete="off"
+              spellcheck="false"
+              required
+            >
+            <button type="button" id="paste-btn" class="btn-secondary" title="Colar da Área de Transferência">
+              <i class="fa-regular fa-clipboard"></i> Colar
+            </button>
+            <button type="button" id="clear-btn" class="btn-secondary" title="Limpar a Tela" style="margin-left: 8px;">
+              <i class="fa-solid fa-eraser"></i> Limpar
+            </button>
+            <button type="submit" id="analyze-btn" class="btn-primary" style="margin-left: 8px;">
+              <span class="btn-text"><i class="fa-solid fa-wand-magic-sparkles"></i> Analisar</span>
+              <span class="btn-loader hidden"><i class="fa-solid fa-spinner fa-spin"></i></span>
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <!-- SKELETON LOADER -->
+      <section id="skeleton-card" class="card skeleton-card hidden">
+        <div class="skeleton-thumb"></div>
+        <div class="skeleton-info">
+          <div class="skeleton-line skeleton-title"></div>
+          <div class="skeleton-line skeleton-meta"></div>
+          <div class="skeleton-line skeleton-tags"></div>
+        </div>
+      </section>
+
+      <!-- VIDEO PREVIEW & OPTIONS CARD -->
+      <section id="preview-card" class="card preview-card hidden">
+        <div class="video-preview-header">
+          <div class="thumbnail-wrapper">
+            <img id="video-thumb" src="" alt="Thumbnail do Vídeo" loading="lazy" onerror="this.onerror=null; this.src='/static/favicon.svg'; this.style.objectFit='contain'; this.style.padding='20px';">
+            <span id="video-duration" class="duration-badge">00:00</span>
+          </div>
+
+          <div class="video-meta">
+            <h2 id="video-title" class="video-title">Título do Vídeo</h2>
+            <div class="meta-row">
+              <span class="channel-info"><i class="fa-solid fa-circle-user"></i> <strong id="video-channel">Canal</strong></span>
+            </div>
+            
+            <!-- Type Selector -->
+            <div class="format-toggle-wrapper">
+              <span class="section-label">Formato de Saída:</span>
+              <div class="format-segmented">
+                <button type="button" class="format-btn active" data-format="video">
+                  <i class="fa-solid fa-film"></i> Vídeo (MP4)
+                </button>
+                <button type="button" class="format-btn" data-format="audio">
+                  <i class="fa-solid fa-music"></i> Áudio (MP3 320kbps)
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RESOLUTION CHIPS (VIDEO MODE) -->
+        <div id="resolutions-container" class="resolutions-section">
+          <span class="section-label"><i class="fa-solid fa-sliders"></i> Selecione a Qualidade:</span>
+          <div id="resolution-chips" class="resolution-chips">
+            <!-- Pílulas preenchidas dinamicamente via JS -->
+          </div>
+        </div>
+
+        <!-- DESTINATION DIRECTORY -->
+        <div class="destination-section">
+          <div class="dest-label">
+            <span><i class="fa-regular fa-folder-open"></i> Salvar na pasta:</span>
+          </div>
+          <div class="dest-input-group">
+            <input type="text" id="dest-input" placeholder="Caminho da pasta..." spellcheck="false">
+            <button type="button" id="open-dest-btn" class="btn-outline" title="Selecionar nova pasta de destino">
+              <i class="fa-solid fa-folder-magnifying-glass"></i> Selecionar
+            </button>
+          </div>
+        </div>
+
+        <!-- PRIMARY ACTION BUTTON -->
+        <div class="download-action">
+          <button type="button" id="start-download-btn" class="btn-download-glow">
+            <span class="btn-icon"><i class="fa-solid fa-cloud-arrow-down"></i></span>
+            <span class="btn-text">INICIAR DOWNLOAD</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- PROGRESS & LIVE METRICS CARD -->
+      <section id="progress-card" class="card progress-card hidden">
+        <div class="progress-header">
+          <div class="progress-title-box">
+            <span class="pulse-indicator"></span>
+            <h3 id="progress-status-text">Baixando vídeo...</h3>
+          </div>
+          <div style="display: flex; align-items: center; gap: 15px;">
+            <span id="progress-percent" class="progress-percent">0%</span>
+            <button type="button" id="cancel-download-btn" class="btn-secondary" style="padding: 5px 10px; font-size: 0.85rem; border-color: #ef4444; color: #ef4444;">
+              <i class="fa-solid fa-xmark"></i> Cancelar
+            </button>
+          </div>
+        </div>
+
+        <!-- Futuristic Progress Bar -->
+        <div class="progress-bar-track">
+          <div id="progress-bar-fill" class="progress-bar-fill" style="width: 0%;">
+            <div class="progress-shimmer"></div>
+          </div>
+        </div>
+
+        <!-- Live Metrics Grid -->
+        <div class="metrics-grid">
+          <div class="metric-item">
+            <span class="metric-label"><i class="fa-solid fa-bolt"></i> Velocidade</span>
+            <strong id="metric-speed">-- MB/s</strong>
+          </div>
+          <div class="metric-item">
+            <span class="metric-label"><i class="fa-solid fa-hard-drive"></i> Baixado</span>
+            <strong id="metric-downloaded">0 MB / 0 MB</strong>
+          </div>
+          <div class="metric-item">
+            <span class="metric-label"><i class="fa-solid fa-clock"></i> Tempo Restante</span>
+            <strong id="metric-eta">--:--</strong>
+          </div>
+        </div>
+      </section>
+
+      <!-- SUCCESS MODAL / CARD -->
+      <section id="success-card" class="card success-card hidden">
+        <div class="success-icon">
+          <i class="fa-solid fa-circle-check"></i>
+        </div>
+        <h3 class="success-title">Download Concluído com Sucesso!</h3>
+        
+        <div class="success-actions" style="margin-top: 15px;">
+          <button type="button" id="success-open-btn" class="btn-primary">
+            <i class="fa-solid fa-folder-open"></i> Abrir Arquivo na Pasta
+          </button>
+          <button type="button" id="success-reset-btn" class="btn-secondary">
+            <i class="fa-solid fa-rotate-left"></i> Baixar Outro
+          </button>
+        </div>
+      </section>
+
+      <!-- HISTORY CARD -->
+      <section id="history-card" class="card hidden" style="margin-top: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+          <h3 style="margin: 0; font-family: 'Outfit'; font-size: 1.2rem;"><i class="fa-solid fa-clock-rotate-left"></i> Histórico de Downloads</h3>
+          <button type="button" id="clear-history-btn" class="btn-outline" style="padding: 5px 10px; font-size: 0.8rem; color: #ef4444; border-color: #ef4444;">
+            <i class="fa-solid fa-trash-can"></i> Limpar
+          </button>
+        </div>
+        <div id="history-list" class="history-list" style="display: flex; flex-direction: column; gap: 10px;">
+          <!-- Itens injetados pelo JS -->
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- TOAST NOTIFICATIONS -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- App Script -->
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
