@@ -52,8 +52,8 @@ class YouTubeDownloaderEngine:
             'retries': 10,
             'fragment_retries': 10,
             'concurrent_fragment_downloads': 4,
-            # Prioriza HLS (m3u8) sobre HTTPS direto — YouTube bloqueia downloads DASH HTTP com 403
-            'format_sort': ['proto:m3u8_native:m3u8', 'res', 'fps', 'codec:vp9:h264', 'size', 'br'],
+            # Prioriza o áudio original, e depois HLS (m3u8) sobre HTTPS direto
+            'format_sort': ['lang:orig', 'proto:m3u8_native:m3u8', 'res', 'fps', 'codec:vp9:h264', 'size', 'br'],
             'format_sort_force': True,
             # Inclui streams HLS duplicados para ter mais opções disponíveis
             'extractor_args': {

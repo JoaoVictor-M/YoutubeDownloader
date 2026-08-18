@@ -325,6 +325,7 @@ function renderPlaylistPreview(playlist) {
       document.querySelectorAll('#playlist-resolution-chips .chip').forEach(c => c.classList.remove('active'));
       chip.classList.add('active');
       state.selectedResolution = res.height;
+      updatePlaylistSelectedCount();
     });
 
     DOM.playlistResolutionChips.appendChild(chip);
@@ -346,7 +347,43 @@ function renderPlaylistPreview(playlist) {
 
 function updatePlaylistSelectedCount() {
   const checkboxes = document.querySelectorAll('.playlist-checkbox:checked');
-  DOM.playlistSelectedCount.textContent = checkboxes.length;
+  
+  const countEl = document.getElementById('playlist-selected-count');
+  const sizeEl = document.getElementById('playlist-estimated-size');
+  
+  if (countEl) countEl.textContent = checkboxes.length;
+  
+  if (!sizeEl || !state.currentVideo || !state.currentVideo.videos) return;
+
+  let totalSeconds = 0;
+  checkboxes.forEach(cb => {
+    const idx = parseInt(cb.value);
+    const vid = state.currentVideo.videos[idx];
+    if (vid && vid.duration) {
+      totalSeconds += vid.duration;
+    }
+  });
+
+  let mbPerSecond = 0.5; // default 1080p
+  if (state.selectedFormat === 'audio') {
+     mbPerSecond = 0.016; // ~1MB/min (128kbps)
+  } else {
+     const res = state.selectedResolution;
+     if (res >= 2160) mbPerSecond = 1.6; // ~100MB/min
+     else if (res >= 1440) mbPerSecond = 0.8; // ~50MB/min
+     else if (res >= 1080) mbPerSecond = 0.5; // ~30MB/min
+     else if (res >= 720) mbPerSecond = 0.25; // ~15MB/min
+     else if (res >= 480) mbPerSecond = 0.15; // ~9MB/min
+     else mbPerSecond = 0.08; // 360p ~5MB/min
+  }
+
+  const totalMB = totalSeconds * mbPerSecond;
+
+  if (totalMB > 1024) {
+    sizeEl.textContent = `~${(totalMB / 1024).toFixed(2)} GB`;
+  } else {
+    sizeEl.textContent = `~${totalMB.toFixed(1)} MB`;
+  }
 }
 
 DOM.toggleAllBtn.addEventListener('click', () => {
@@ -384,6 +421,7 @@ DOM.playlistFormatBtns.forEach(btn => {
     } else {
       DOM.playlistResolutionsContainer.classList.remove('hidden');
     }
+    updatePlaylistSelectedCount();
   });
 });
 
@@ -608,8 +646,9 @@ function finishDownloadUI(isSuccess) {
   DOM.startDownloadBtn.innerHTML = '<span class="btn-icon"><i class="fa-solid fa-cloud-arrow-down"></i></span><span class="btn-text">INICIAR DOWNLOAD</span>';
   
   DOM.playlistStartDownloadBtn.disabled = false;
-  DOM.playlistStartDownloadBtn.innerHTML = '<span class="btn-icon"><i class="fa-solid fa-list-check"></i></span><span class="btn-text">BAIXAR SELECIONADOS ('+document.querySelectorAll('.playlist-checkbox:checked').length+')</span>';
-  
+  DOM.playlistStartDownloadBtn.innerHTML = '<span class="btn-icon"><i class="fa-solid fa-list-check"></i></span><span class="btn-text">BAIXAR SELECIONADOS (<span id="playlist-selected-count">0</span>)<br><span id="playlist-estimated-size" style="font-size: 0.8em; opacity: 0.8;">~0 MB</span></span>';
+  updatePlaylistSelectedCount(); // Atualiza a contagem e tamanho
+
   if (state.socket) {
     try { state.socket.close(); } catch(e) {}
     state.socket = null;
