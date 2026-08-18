@@ -150,6 +150,64 @@
         </div>
       </section>
 
+      <!-- PLAYLIST PREVIEW & OPTIONS CARD -->
+      <section id="playlist-preview-card" class="card preview-card hidden">
+        <div class="video-preview-header" style="flex-direction: column;">
+          <h2 id="playlist-title" class="video-title" style="margin-bottom: 15px;">Título da Playlist</h2>
+          
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <span class="section-label" style="margin: 0;">Selecione os vídeos:</span>
+            <button type="button" id="toggle-all-btn" class="btn-outline" style="padding: 5px 10px; font-size: 0.8rem;">Desmarcar Todos</button>
+          </div>
+          
+          <div id="playlist-videos-container" class="playlist-videos-container" style="max-height: 300px; overflow-y: auto; background: var(--bg-secondary); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 8px; border: 1px solid var(--border-color);">
+            <!-- Playlist items will be injected here via JS -->
+          </div>
+
+          <!-- Type Selector (Global for Playlist) -->
+          <div class="format-toggle-wrapper" style="margin-top: 20px;">
+            <span class="section-label">Formato de Saída (Para todos):</span>
+            <div class="format-segmented">
+              <button type="button" class="playlist-format-btn active" data-format="video">
+                <i class="fa-solid fa-film"></i> Vídeo (MP4)
+              </button>
+              <button type="button" class="playlist-format-btn" data-format="audio">
+                <i class="fa-solid fa-music"></i> Áudio (MP3)
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- RESOLUTION CHIPS (VIDEO MODE) -->
+        <div id="playlist-resolutions-container" class="resolutions-section">
+          <span class="section-label"><i class="fa-solid fa-sliders"></i> Selecione a Qualidade:</span>
+          <div id="playlist-resolution-chips" class="resolution-chips">
+            <!-- Pílulas preenchidas dinamicamente via JS -->
+          </div>
+        </div>
+
+        <!-- DESTINATION DIRECTORY -->
+        <div class="destination-section">
+          <div class="dest-label">
+            <span><i class="fa-regular fa-folder-open"></i> Salvar na pasta:</span>
+          </div>
+          <div class="dest-input-group">
+            <input type="text" id="playlist-dest-input" placeholder="Caminho da pasta..." spellcheck="false">
+            <button type="button" id="playlist-open-dest-btn" class="btn-outline" title="Selecionar nova pasta de destino">
+              <i class="fa-solid fa-folder-magnifying-glass"></i> Selecionar
+            </button>
+          </div>
+        </div>
+
+        <!-- PRIMARY ACTION BUTTON -->
+        <div class="download-action">
+          <button type="button" id="playlist-start-download-btn" class="btn-download-glow">
+            <span class="btn-icon"><i class="fa-solid fa-list-check"></i></span>
+            <span class="btn-text">BAIXAR SELECIONADOS (<span id="playlist-selected-count">0</span>)</span>
+          </button>
+        </div>
+      </section>
+
       <!-- PROGRESS & LIVE METRICS CARD -->
       <section id="progress-card" class="card progress-card hidden">
         <div class="progress-header">

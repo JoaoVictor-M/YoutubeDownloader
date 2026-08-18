@@ -4,6 +4,7 @@ import asyncio
 import threading
 import subprocess
 import logging
+import time
 from pathlib import Path
 from typing import Optional, Dict, Any
 
@@ -33,28 +34,27 @@ from .utils import (
 
 app = FastAPI(title="YouTube Downloader API")
 
-# Mecanismo de Auto-Shutdown: Se o navegador for fechado, o servidor morre.
-import time
-last_heartbeat_time = time.time()
+# Mecanismo de Auto-Shutdown via WebSocket
+active_connections = 0
 
-@app.on_event("startup")
-def startup_event():
-    def watchdog_loop():
-        global last_heartbeat_time
+def schedule_shutdown():
+    time.sleep(3)
+    if active_connections == 0:
+        logger.info("Navegador fechado. Encerrando servidor...")
+        os._exit(0)
+
+@app.websocket("/ws/heartbeat")
+async def websocket_heartbeat(websocket: WebSocket):
+    global active_connections
+    await websocket.accept()
+    active_connections += 1
+    try:
         while True:
-            time.sleep(2)
-            # Se não receber heartbeat por 10 segundos, fecha a aplicação.
-            if time.time() - last_heartbeat_time > 10:
-                logger.info("Navegador fechado (sem heartbeat). Encerrando servidor...")
-                os._exit(0)
-                
-    threading.Thread(target=watchdog_loop, daemon=True).start()
-
-@app.get("/api/heartbeat")
-def heartbeat():
-    global last_heartbeat_time
-    last_heartbeat_time = time.time()
-    return {"status": "ok"}
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        active_connections -= 1
+        if active_connections == 0:
+            threading.Thread(target=schedule_shutdown, daemon=True).start()
 
 
 # Diretórios estáticos e templates (usam o diretório de recursos que no PyInstaller é sys._MEIPASS)

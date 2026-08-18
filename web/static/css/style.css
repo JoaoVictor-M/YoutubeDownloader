@@ -223,6 +223,47 @@ body {
   box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
 }
 
+/* --- CUSTOM SCROLLBAR --- */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--chip-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* --- PLAYLIST STYLES --- */
+.playlist-videos-container {
+  scrollbar-width: thin;
+  scrollbar-color: var(--chip-border) transparent;
+}
+
+.playlist-video-item {
+  transition: background 0.2s ease, transform 0.1s ease;
+}
+
+.playlist-video-item:hover {
+  background: var(--chip-bg) !important;
+  transform: translateX(2px);
+}
+
+.playlist-checkbox {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--brand-red);
+}
+
 /* Theme Toggle Button */
 .theme-toggle-btn {
   width: 42px;

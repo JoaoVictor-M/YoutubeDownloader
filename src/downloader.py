@@ -75,21 +75,56 @@ class YouTubeDownloaderEngine:
 
     def extract_info(self, url: str) -> Dict[str, Any]:
         """
-        Extrai metadados do vídeo e lista EXCLUSIVAMENTE as resoluções reais disponíveis para aquele vídeo.
+        Extrai metadados do vídeo ou playlist.
         """
         ydl_opts = self._get_base_opts()
         ydl_opts.update({
-            'extract_flat': False,
+            'extract_flat': 'in_playlist',
             'skip_download': True,
         })
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
             
-            # Se for playlist, pega o primeiro vídeo
-            if 'entries' in info and info['entries']:
-                info = info['entries'][0]
+            # Detecta se é uma playlist
+            if info.get('_type') == 'playlist' or 'entries' in info:
+                playlist_title = info.get('title', 'Playlist')
+                entries = info.get('entries', [])
+                videos = []
+                
+                for entry in entries:
+                    vid_id = entry.get('id')
+                    vid_url = entry.get('url') or (f"https://www.youtube.com/watch?v={vid_id}" if vid_id else None)
+                    if vid_url:
+                        videos.append({
+                            "id": vid_id,
+                            "url": vid_url,
+                            "title": entry.get('title', 'Vídeo sem título'),
+                            "duration": entry.get('duration', 0),
+                            "thumbnail": f"https://img.youtube.com/vi/{vid_id}/mqdefault.jpg" if vid_id else ""
+                        })
+                
+                # Resoluções padrão já que não carregamos os formatos de cada vídeo
+                resolutions = [
+                    {"height": 2160, "label": "4K Ultra HD (2160p)", "size_str": "N/A"},
+                    {"height": 1440, "label": "2K Quad HD (1440p)", "size_str": "N/A"},
+                    {"height": 1080, "label": "Full HD (1080p)", "size_str": "N/A"},
+                    {"height": 720, "label": "HD (720p)", "size_str": "N/A"},
+                    {"height": 480, "label": "480p (SD)", "size_str": "N/A"},
+                    {"height": 360, "label": "360p (SD)", "size_str": "N/A"}
+                ]
+                
+                return {
+                    "type": "playlist",
+                    "id": info.get('id'),
+                    "url": url,
+                    "title": playlist_title,
+                    "videos": videos,
+                    "resolutions": resolutions,
+                    "raw_info": info
+                }
 
+            # Se não for playlist, processa como vídeo único
             title = info.get('title', 'Vídeo sem título')
             uploader = info.get('uploader') or info.get('channel', 'Canal Desconhecido')
             duration = info.get('duration', 0)
@@ -138,6 +173,7 @@ class YouTubeDownloaderEngine:
                 ]
 
             return {
+                "type": "video",
                 "id": info.get('id'),
                 "url": url,
                 "title": title,

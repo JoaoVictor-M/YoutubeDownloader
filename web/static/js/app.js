@@ -13,7 +13,13 @@ const state = {
   lastDownloadedPath: '',
   isDownloading: false,
   socket: null,
-  history: []
+  history: [],
+  
+  // Playlist State
+  playlistQueue: [],
+  playlistTotal: 0,
+  playlistCurrentIndex: 0,
+  isPlaylistMode: false
 };
 
 // --- ELEMENTOS DO DOM ---
@@ -43,6 +49,18 @@ const DOM = {
   openDestBtn: document.getElementById('open-dest-btn'),
   startDownloadBtn: document.getElementById('start-download-btn'),
   cancelDownloadBtn: document.getElementById('cancel-download-btn'),
+  
+  playlistPreviewCard: document.getElementById('playlist-preview-card'),
+  playlistTitle: document.getElementById('playlist-title'),
+  playlistVideosContainer: document.getElementById('playlist-videos-container'),
+  toggleAllBtn: document.getElementById('toggle-all-btn'),
+  playlistFormatBtns: document.querySelectorAll('.playlist-format-btn'),
+  playlistResolutionsContainer: document.getElementById('playlist-resolutions-container'),
+  playlistResolutionChips: document.getElementById('playlist-resolution-chips'),
+  playlistDestInput: document.getElementById('playlist-dest-input'),
+  playlistOpenDestBtn: document.getElementById('playlist-open-dest-btn'),
+  playlistStartDownloadBtn: document.getElementById('playlist-start-download-btn'),
+  playlistSelectedCount: document.getElementById('playlist-selected-count'),
   
   progressCard: document.getElementById('progress-card'),
   progressStatusText: document.getElementById('progress-status-text'),
@@ -166,6 +184,7 @@ async function fetchVideoInfo() {
   setAnalyzeLoading(true);
   DOM.skeletonCard.classList.remove('hidden');
   DOM.previewCard.classList.add('hidden');
+  DOM.playlistPreviewCard.classList.add('hidden');
   DOM.progressCard.classList.add('hidden');
   DOM.successCard.classList.add('hidden');
 
@@ -183,7 +202,14 @@ async function fetchVideoInfo() {
 
     const data = await res.json();
     state.currentVideo = data;
-    renderVideoPreview(data);
+    
+    if (data.type === 'playlist') {
+      state.isPlaylistMode = true;
+      renderPlaylistPreview(data);
+    } else {
+      state.isPlaylistMode = false;
+      renderVideoPreview(data);
+    }
   } catch (err) {
     showToast(`Erro: ${err.message}`, 'error');
   } finally {
@@ -246,12 +272,92 @@ function renderVideoPreview(video) {
   // Define a resolução padrão como a primeira (Melhor Qualidade ou mais alta)
   state.selectedResolution = resolutions.length > 0 ? resolutions[0].height : null;
 
-  // Mostra o card de preview
   DOM.previewCard.classList.remove('hidden');
+  DOM.playlistPreviewCard.classList.add('hidden');
   DOM.previewCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
-// Alternador de Formato (Vídeo vs Áudio)
+function renderPlaylistPreview(playlist) {
+  DOM.playlistTitle.textContent = playlist.title || 'Playlist sem título';
+  DOM.playlistVideosContainer.innerHTML = '';
+  
+  playlist.videos.forEach((vid, index) => {
+    const el = document.createElement('label');
+    el.className = 'playlist-video-item';
+    el.style.display = 'flex';
+    el.style.alignItems = 'center';
+    el.style.gap = '10px';
+    el.style.padding = '8px';
+    el.style.background = 'var(--surface-color)';
+    el.style.borderRadius = '6px';
+    el.style.cursor = 'pointer';
+    
+    el.innerHTML = `
+      <input type="checkbox" class="playlist-checkbox" value="${index}" checked>
+      <img src="${vid.thumbnail || '/static/favicon.svg'}" style="width: 60px; height: 40px; object-fit: cover; border-radius: 4px;">
+      <div style="display: flex; flex-direction: column; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;">
+        <span style="font-size: 0.9rem; font-weight: 500; overflow: hidden; text-overflow: ellipsis;">${vid.title}</span>
+      </div>
+    `;
+    
+    el.querySelector('input').addEventListener('change', updatePlaylistSelectedCount);
+    DOM.playlistVideosContainer.appendChild(el);
+  });
+  
+  // Renderiza Resoluções da Playlist
+  DOM.playlistResolutionChips.innerHTML = '';
+  const resolutions = playlist.resolutions || [];
+
+  resolutions.forEach((res, index) => {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = `chip ${index === 0 ? 'active' : ''}`;
+    
+    let badgeHtml = '';
+    if (res.height >= 2160) badgeHtml = '<span class="chip-badge">4K</span>';
+    else if (res.height >= 1440) badgeHtml = '<span class="chip-badge">2K</span>';
+    else if (res.height >= 1080) badgeHtml = '<span class="chip-badge">Full HD</span>';
+    else if (res.height >= 720) badgeHtml = '<span class="chip-badge">HD</span>';
+
+    chip.innerHTML = `${res.label} ${badgeHtml}`;
+    
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('#playlist-resolution-chips .chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      state.selectedResolution = res.height;
+    });
+
+    DOM.playlistResolutionChips.appendChild(chip);
+  });
+
+  state.selectedResolution = resolutions.length > 0 ? resolutions[0].height : null;
+  state.selectedFormat = 'video';
+  document.querySelectorAll('.playlist-format-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector('.playlist-format-btn[data-format="video"]').classList.add('active');
+  DOM.playlistResolutionsContainer.classList.remove('hidden');
+
+  updatePlaylistSelectedCount();
+
+  DOM.playlistDestInput.value = DOM.destInput.value;
+  DOM.playlistPreviewCard.classList.remove('hidden');
+  DOM.previewCard.classList.add('hidden');
+  DOM.playlistPreviewCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function updatePlaylistSelectedCount() {
+  const checkboxes = document.querySelectorAll('.playlist-checkbox:checked');
+  DOM.playlistSelectedCount.textContent = checkboxes.length;
+}
+
+DOM.toggleAllBtn.addEventListener('click', () => {
+  const checkboxes = document.querySelectorAll('.playlist-checkbox');
+  const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+  checkboxes.forEach(cb => cb.checked = !allChecked);
+  DOM.toggleAllBtn.textContent = allChecked ? "Selecionar Todos" : "Desmarcar Todos";
+  updatePlaylistSelectedCount();
+});
+
+// Alternador de Formato (Vídeo vs Áudio) - Single
 DOM.formatBtns.forEach(btn => {
   btn.addEventListener('click', () => {
     DOM.formatBtns.forEach(b => b.classList.remove('active'));
@@ -266,36 +372,102 @@ DOM.formatBtns.forEach(btn => {
   });
 });
 
+// Alternador de Formato (Vídeo vs Áudio) - Playlist
+DOM.playlistFormatBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    DOM.playlistFormatBtns.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    
+    state.selectedFormat = btn.dataset.format;
+    if (state.selectedFormat === 'audio') {
+      DOM.playlistResolutionsContainer.classList.add('hidden');
+    } else {
+      DOM.playlistResolutionsContainer.classList.remove('hidden');
+    }
+  });
+});
+
 // ==========================================================================
 // 5. DOWNLOAD MANAGER VIA WEBSOCKET
 // ==========================================================================
 
 DOM.startDownloadBtn.addEventListener('click', startDownload);
+DOM.playlistStartDownloadBtn.addEventListener('click', startPlaylistDownload);
 
 function startDownload() {
   if (!state.currentVideo) {
     showToast('Analise um vídeo antes de iniciar o download.', 'error');
     return;
   }
-
   if (state.isDownloading) return;
+  startSingleDownload(state.currentVideo.url, state.currentVideo.title, DOM.destInput.value.trim());
+}
 
-  const url = state.currentVideo.url;
-  const media_type = state.selectedFormat;
-  const resolution_height = media_type === 'video' ? (state.selectedResolution ? parseInt(state.selectedResolution) : null) : null;
-  const output_dir = DOM.destInput.value.trim() || state.outputDirectory;
+function startPlaylistDownload() {
+  const checkboxes = document.querySelectorAll('.playlist-checkbox:checked');
+  if (checkboxes.length === 0) {
+    showToast('Selecione pelo menos um vídeo para baixar.', 'error');
+    return;
+  }
 
-  // UI Setup para Download
+  state.playlistQueue = [];
+  checkboxes.forEach(cb => {
+    const idx = cb.value;
+    state.playlistQueue.push(state.currentVideo.videos[idx]);
+  });
+
+  state.playlistTotal = state.playlistQueue.length;
+  state.playlistCurrentIndex = 0;
+  
   state.isDownloading = true;
-  DOM.startDownloadBtn.disabled = true;
-  DOM.startDownloadBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> BAIXANDO...';
+  DOM.playlistStartDownloadBtn.disabled = true;
+  DOM.playlistStartDownloadBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> PREPARANDO...';
   
   DOM.progressCard.classList.remove('hidden');
   DOM.successCard.classList.add('hidden');
-  resetProgressUI();
   DOM.progressCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
-  // Cria conexão WebSocket
+  processPlaylistQueue();
+}
+
+function processPlaylistQueue() {
+  if (state.playlistQueue.length === 0) {
+    // Fila terminou
+    DOM.progressCard.classList.add('hidden');
+    DOM.successCard.classList.remove('hidden');
+    DOM.successCard.querySelector('.success-title').textContent = `Playlist Concluída (${state.playlistTotal} vídeos)!`;
+    DOM.successCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    
+    showToast(`Playlist concluída! ${state.playlistTotal} baixados.`, 'success');
+    finishDownloadUI(true);
+    return;
+  }
+
+  state.playlistCurrentIndex++;
+  const nextVideo = state.playlistQueue.shift();
+  startSingleDownload(nextVideo.url, nextVideo.title, DOM.playlistDestInput.value.trim());
+}
+
+function startSingleDownload(targetUrl, targetTitle, targetOutputDir) {
+  state.isDownloading = true;
+
+  if (!state.isPlaylistMode) {
+    DOM.startDownloadBtn.disabled = true;
+    DOM.startDownloadBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> BAIXANDO...';
+    DOM.progressCard.classList.remove('hidden');
+    DOM.successCard.classList.add('hidden');
+    DOM.progressCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  resetProgressUI();
+  if (state.isPlaylistMode) {
+    DOM.progressStatusText.textContent = `[${state.playlistCurrentIndex}/${state.playlistTotal}] Conectando: ${targetTitle}...`;
+  }
+
+  const media_type = state.selectedFormat;
+  const resolution_height = media_type === 'video' ? (state.selectedResolution ? parseInt(state.selectedResolution) : null) : null;
+  const output_dir = targetOutputDir || state.outputDirectory;
+
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
   const wsUrl = `${protocol}//${location.host}/ws/download`;
 
@@ -303,7 +475,7 @@ function startDownload() {
 
   state.socket.onopen = () => {
     const payload = {
-      url,
+      url: targetUrl,
       media_type,
       resolution_height,
       output_dir
@@ -313,24 +485,33 @@ function startDownload() {
 
   state.socket.onmessage = (event) => {
     const data = JSON.parse(event.data);
-    handleSocketMessage(data);
+    handleSocketMessage(data, targetTitle);
   };
 
   state.socket.onerror = () => {
     showToast('Erro de comunicação com o servidor.', 'error');
-    finishDownloadUI(false);
+    if (state.isPlaylistMode) {
+      processPlaylistQueue(); // Tenta o próximo mesmo se falhar
+    } else {
+      finishDownloadUI(false);
+    }
   };
 
   state.socket.onclose = () => {
-    if (state.isDownloading) {
+    // If it closed normally but we are still in downloading state without completion, it's an abort
+    if (state.isDownloading && !state.isPlaylistMode) {
       finishDownloadUI(false);
     }
   };
 }
 
-function handleSocketMessage(data) {
+function handleSocketMessage(data, targetTitle) {
   if (data.type === 'progress') {
-    DOM.progressStatusText.textContent = `Baixando arquivo...`;
+    if (state.isPlaylistMode) {
+      DOM.progressStatusText.textContent = `[${state.playlistCurrentIndex}/${state.playlistTotal}] Baixando...`;
+    } else {
+      DOM.progressStatusText.textContent = `Baixando arquivo...`;
+    }
     DOM.progressPercent.textContent = `${data.percent}%`;
     DOM.progressBarFill.style.width = `${data.percent}%`;
     
@@ -339,7 +520,11 @@ function handleSocketMessage(data) {
     DOM.metricEta.textContent = data.eta_str || '--:--';
 
   } else if (data.type === 'processing') {
-    DOM.progressStatusText.textContent = data.message || 'Processando com FFmpeg...';
+    if (state.isPlaylistMode) {
+      DOM.progressStatusText.textContent = `[${state.playlistCurrentIndex}/${state.playlistTotal}] Processando...`;
+    } else {
+      DOM.progressStatusText.textContent = data.message || 'Processando com FFmpeg...';
+    }
     DOM.progressPercent.textContent = '100%';
     DOM.progressBarFill.style.width = '100%';
     DOM.metricEta.textContent = 'Finalizando...';
@@ -347,24 +532,37 @@ function handleSocketMessage(data) {
   } else if (data.type === 'complete') {
     state.lastDownloadedPath = data.filepath;
     
-    DOM.progressCard.classList.add('hidden');
-    DOM.successCard.classList.remove('hidden');
-    DOM.successCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    
     addToHistory({
-        title: state.currentVideo.title,
+        title: targetTitle || 'Download',
         format: state.selectedFormat,
         resolution: state.selectedResolution,
         filepath: data.filepath,
         date: new Date()
     });
 
-    showToast('Download concluído com sucesso!', 'success');
-    finishDownloadUI(true);
+    if (state.isPlaylistMode) {
+      processPlaylistQueue();
+    } else {
+      DOM.progressCard.classList.add('hidden');
+      DOM.successCard.classList.remove('hidden');
+      DOM.successCard.querySelector('.success-title').textContent = 'Download Concluído com Sucesso!';
+      DOM.successCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      showToast('Download concluído com sucesso!', 'success');
+      finishDownloadUI(true);
+    }
 
   } else if (data.type === 'error') {
-    showToast(`Erro no download: ${data.message}`, 'error');
-    finishDownloadUI(false);
+    const isCancel = data.message.toLowerCase().includes('cancelado');
+    if (isCancel) {
+      // Já mostramos o toast no clique do botão, então não fazemos nada aqui
+    } else {
+      showToast(`Erro no download: ${data.message}`, 'error');
+      if (state.isPlaylistMode && state.playlistQueue.length > 0) {
+        processPlaylistQueue();
+      } else {
+        finishDownloadUI(false);
+      }
+    }
   }
 }
 
@@ -379,14 +577,28 @@ function resetProgressUI() {
   DOM.cancelDownloadBtn.innerHTML = '<i class="fa-solid fa-xmark"></i> Cancelar';
 }
 
-DOM.cancelDownloadBtn.addEventListener('click', async () => {
+DOM.cancelDownloadBtn.addEventListener('click', () => {
   if (!state.isDownloading) return;
   DOM.cancelDownloadBtn.disabled = true;
   DOM.cancelDownloadBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Cancelando...';
-  try {
-    await fetch('/api/cancel', { method: 'POST' });
-  } catch (err) {
-    console.error('Erro ao cancelar:', err);
+  
+  if (state.isPlaylistMode) {
+    state.playlistQueue = []; // Limpa fila
+  }
+  
+  // Aciona cancelamento no backend
+  fetch('/api/cancel', { method: 'POST' }).catch(() => {});
+  
+  // Encerra imediatamente no frontend
+  showToast('Download cancelado.', 'info');
+  finishDownloadUI(false);
+  
+  // Esconde o card de progresso e volta pro preview
+  DOM.progressCard.classList.add('hidden');
+  if (state.isPlaylistMode) {
+    DOM.playlistPreviewCard.classList.remove('hidden');
+  } else {
+    DOM.previewCard.classList.remove('hidden');
   }
 });
 
@@ -394,6 +606,9 @@ function finishDownloadUI(isSuccess) {
   state.isDownloading = false;
   DOM.startDownloadBtn.disabled = false;
   DOM.startDownloadBtn.innerHTML = '<span class="btn-icon"><i class="fa-solid fa-cloud-arrow-down"></i></span><span class="btn-text">INICIAR DOWNLOAD</span>';
+  
+  DOM.playlistStartDownloadBtn.disabled = false;
+  DOM.playlistStartDownloadBtn.innerHTML = '<span class="btn-icon"><i class="fa-solid fa-list-check"></i></span><span class="btn-text">BAIXAR SELECIONADOS ('+document.querySelectorAll('.playlist-checkbox:checked').length+')</span>';
   
   if (state.socket) {
     try { state.socket.close(); } catch(e) {}
@@ -442,11 +657,13 @@ DOM.clearBtn.addEventListener('click', clearScreen);
 function clearScreen() {
   DOM.successCard.classList.add('hidden');
   DOM.previewCard.classList.add('hidden');
+  DOM.playlistPreviewCard.classList.add('hidden');
   DOM.progressCard.classList.add('hidden');
   DOM.urlInput.value = '';
   DOM.urlInput.focus();
   state.currentVideo = null;
   state.isDownloading = false;
+  state.isPlaylistMode = false;
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -528,8 +745,26 @@ document.addEventListener('DOMContentLoaded', () => {
   initTheme();
   checkSystemStatus();
   
-  // Heartbeat mechanism to keep server alive
-  setInterval(() => {
-    fetch('/api/heartbeat').catch(() => {});
-  }, 2000);
+  // Heartbeat mechanism to keep server alive ONLY while tab is open
+  function connectHeartbeat() {
+    const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${location.host}/ws/heartbeat`;
+    const ws = new WebSocket(wsUrl);
+    
+    ws.onopen = () => {
+      // Send a ping every 30 seconds to keep connection alive at proxy level if any
+      setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send('ping');
+        }
+      }, 30000);
+    };
+    
+    ws.onclose = () => {
+      // Tenta reconectar se a aba ainda estiver aberta e o server caiu ou restartou
+      setTimeout(connectHeartbeat, 2000);
+    };
+  }
+  
+  connectHeartbeat();
 });
