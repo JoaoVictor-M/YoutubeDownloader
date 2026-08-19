@@ -27,13 +27,18 @@ def clean_ansi(text: str) -> str:
 
 class YouTubeDownloaderEngine:
     def __init__(self):
-        self._is_cancelled = False
+        self.active_tasks = {}
         # Força inicialização do dir binário (injetando node.exe no PATH)
         get_bin_dir()
 
-    def cancel(self):
-        """Sinaliza cancelamento do download."""
-        self._is_cancelled = True
+    def cancel(self, task_id: str = None):
+        """Sinaliza cancelamento do download. Se task_id não for fornecido, cancela todos (fallback)."""
+        if task_id:
+            if task_id in self.active_tasks:
+                self.active_tasks[task_id]["is_cancelled"] = True
+        else:
+            for t_id in self.active_tasks:
+                self.active_tasks[t_id]["is_cancelled"] = True
 
     def _get_base_opts(self) -> Dict[str, Any]:
         """Retorna opções do yt-dlp otimizadas para contornar bloqueios do YouTube (403 Forbidden)."""
@@ -186,6 +191,7 @@ class YouTubeDownloaderEngine:
 
     def download(
         self,
+        task_id: str,
         url: str,
         media_type: str,           # 'video' ou 'audio'
         resolution_height: Optional[int],
@@ -197,12 +203,12 @@ class YouTubeDownloaderEngine:
         """
         Executa o download de vídeo (MP4) na resolução exata escolhida ou áudio (MP3 320kbps).
         """
-        self._is_cancelled = False
+        self.active_tasks[task_id] = {"is_cancelled": False}
         ffmpeg_path = get_ffmpeg_path()
         last_update_time = [0.0]
 
         def progress_hook(d):
-            if self._is_cancelled:
+            if self.active_tasks.get(task_id, {}).get("is_cancelled", False):
                 raise Exception("Download cancelado pelo usuário.")
 
             if not progress_callback:
@@ -321,3 +327,6 @@ class YouTubeDownloaderEngine:
                 error_callback(err_text)
             else:
                 raise e
+        finally:
+            if task_id in self.active_tasks:
+                del self.active_tasks[task_id]

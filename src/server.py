@@ -78,6 +78,10 @@ class FolderRequest(BaseModel):
     path: Optional[str] = None
 
 
+class CancelRequest(BaseModel):
+    task_id: Optional[str] = None
+
+
 @app.get("/", response_class=HTMLResponse)
 async def serve_index():
     index_file = TEMPLATES_DIR / "index.html"
@@ -130,9 +134,9 @@ async def upload_cookies(file: UploadFile = File(...)):
 
 
 @app.post("/api/cancel")
-async def cancel_download():
+async def cancel_download(req: CancelRequest):
     """Cancela o download em andamento."""
-    engine.cancel()
+    engine.cancel(req.task_id)
     return {"success": True, "message": "Cancelamento solicitado."}
 
 
@@ -194,6 +198,7 @@ async def websocket_download_endpoint(websocket: WebSocket):
         media_type = params.get("media_type", "video") # "video" ou "audio"
         res_height = params.get("resolution_height")    # int ou None
         output_dir = params.get("output_dir") or get_default_download_dir()
+        task_id = params.get("task_id")
 
         loop = asyncio.get_running_loop()
 
@@ -248,6 +253,7 @@ async def websocket_download_endpoint(websocket: WebSocket):
         # Executa o download na threadpool
         await asyncio.to_thread(
             engine.download,
+            task_id=task_id,
             url=url,
             media_type=media_type,
             resolution_height=res_height,
@@ -259,7 +265,8 @@ async def websocket_download_endpoint(websocket: WebSocket):
 
     except WebSocketDisconnect:
         logger.info("WebSocket desconectado pelo cliente.")
-        engine.cancel()
+        if 'task_id' in locals() and task_id:
+            engine.cancel(task_id)
     except Exception as e:
         logger.error(f"Erro inesperado no WebSocket: {e}", exc_info=True)
         err_msg = {

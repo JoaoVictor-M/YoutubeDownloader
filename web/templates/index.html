@@ -208,59 +208,16 @@
         </div>
       </section>
 
-      <!-- PROGRESS & LIVE METRICS CARD -->
-      <section id="progress-card" class="card progress-card hidden">
-        <div class="progress-header">
-          <div class="progress-title-box">
-            <span class="pulse-indicator"></span>
-            <h3 id="progress-status-text">Baixando vídeo...</h3>
-          </div>
-          <div style="display: flex; align-items: center; gap: 15px;">
-            <span id="progress-percent" class="progress-percent">0%</span>
-            <button type="button" id="cancel-download-btn" class="btn-secondary" style="padding: 5px 10px; font-size: 0.85rem; border-color: #ef4444; color: #ef4444;">
-              <i class="fa-solid fa-xmark"></i> Cancelar
-            </button>
-          </div>
-        </div>
-
-        <!-- Futuristic Progress Bar -->
-        <div class="progress-bar-track">
-          <div id="progress-bar-fill" class="progress-bar-fill" style="width: 0%;">
-            <div class="progress-shimmer"></div>
-          </div>
-        </div>
-
-        <!-- Live Metrics Grid -->
-        <div class="metrics-grid">
-          <div class="metric-item">
-            <span class="metric-label"><i class="fa-solid fa-bolt"></i> Velocidade</span>
-            <strong id="metric-speed">-- MB/s</strong>
-          </div>
-          <div class="metric-item">
-            <span class="metric-label"><i class="fa-solid fa-hard-drive"></i> Baixado</span>
-            <strong id="metric-downloaded">0 MB / 0 MB</strong>
-          </div>
-          <div class="metric-item">
-            <span class="metric-label"><i class="fa-solid fa-clock"></i> Tempo Restante</span>
-            <strong id="metric-eta">--:--</strong>
-          </div>
-        </div>
-      </section>
-
-      <!-- SUCCESS MODAL / CARD -->
-      <section id="success-card" class="card success-card hidden">
-        <div class="success-icon">
-          <i class="fa-solid fa-circle-check"></i>
-        </div>
-        <h3 class="success-title">Download Concluído com Sucesso!</h3>
-        
-        <div class="success-actions" style="margin-top: 15px;">
-          <button type="button" id="success-open-btn" class="btn-primary">
-            <i class="fa-solid fa-folder-open"></i> Abrir Arquivo na Pasta
+      <!-- DOWNLOAD QUEUE CARD -->
+      <section id="queue-card" class="card hidden" style="margin-top: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+          <h3 style="margin: 0; font-family: 'Outfit'; font-size: 1.2rem;"><i class="fa-solid fa-list-ul"></i> Fila de Downloads</h3>
+          <button type="button" id="clear-queue-btn" class="btn-outline" style="padding: 5px 10px; font-size: 0.8rem;">
+            <i class="fa-solid fa-broom"></i> Limpar Concluídos
           </button>
-          <button type="button" id="success-reset-btn" class="btn-secondary">
-            <i class="fa-solid fa-rotate-left"></i> Baixar Outro
-          </button>
+        </div>
+        <div id="queue-list" class="queue-list" style="display: flex; flex-direction: column; gap: 10px;">
+          <!-- Items injetados pelo JS -->
         </div>
       </section>
 
@@ -284,6 +241,6 @@
   <div id="toast-container" class="toast-container"></div>
 
   <!-- App Script -->
-  <script src="/static/js/app.js"></script>
+  <script src="/static/js/app.js?v=2"></script>
 </body>
 </html>

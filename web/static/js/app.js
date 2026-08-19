@@ -11,14 +11,14 @@ const state = {
   ffmpegAvailable: false,
   denoAvailable: false,
   lastDownloadedPath: '',
-  isDownloading: false,
-  socket: null,
   history: [],
   
+  // Fila de Downloads
+  queue: [],
+  activeDownloads: 0,
+  maxConcurrent: 3,
+  
   // Playlist State
-  playlistQueue: [],
-  playlistTotal: 0,
-  playlistCurrentIndex: 0,
   isPlaylistMode: false
 };
 
@@ -62,18 +62,9 @@ const DOM = {
   playlistStartDownloadBtn: document.getElementById('playlist-start-download-btn'),
   playlistSelectedCount: document.getElementById('playlist-selected-count'),
   
-  progressCard: document.getElementById('progress-card'),
-  progressStatusText: document.getElementById('progress-status-text'),
-  progressPercent: document.getElementById('progress-percent'),
-  progressBarFill: document.getElementById('progress-bar-fill'),
-  metricSpeed: document.getElementById('metric-speed'),
-  metricDownloaded: document.getElementById('metric-downloaded'),
-  metricEta: document.getElementById('metric-eta'),
-  
-  successCard: document.getElementById('success-card'),
-  successFilename: document.getElementById('success-filename'),
-  successOpenBtn: document.getElementById('success-open-btn'),
-  successResetBtn: document.getElementById('success-reset-btn'),
+  queueCard: document.getElementById('queue-card'),
+  queueList: document.getElementById('queue-list'),
+  clearQueueBtn: document.getElementById('clear-queue-btn'),
   
   historyCard: document.getElementById('history-card'),
   historyList: document.getElementById('history-list'),
@@ -185,8 +176,8 @@ async function fetchVideoInfo() {
   DOM.skeletonCard.classList.remove('hidden');
   DOM.previewCard.classList.add('hidden');
   DOM.playlistPreviewCard.classList.add('hidden');
-  DOM.progressCard.classList.add('hidden');
-  DOM.successCard.classList.add('hidden');
+  
+  
 
   try {
     const res = await fetch('/api/info', {
@@ -426,237 +417,249 @@ DOM.playlistFormatBtns.forEach(btn => {
 });
 
 // ==========================================================================
-// 5. DOWNLOAD MANAGER VIA WEBSOCKET
+// 5. QUEUE MANAGER VIA WEBSOCKET
 // ==========================================================================
 
-DOM.startDownloadBtn.addEventListener('click', startDownload);
-DOM.playlistStartDownloadBtn.addEventListener('click', startPlaylistDownload);
-
-function startDownload() {
+DOM.startDownloadBtn.addEventListener('click', () => {
   if (!state.currentVideo) {
     showToast('Analise um vídeo antes de iniciar o download.', 'error');
     return;
   }
-  if (state.isDownloading) return;
-  startSingleDownload(state.currentVideo.url, state.currentVideo.title, DOM.destInput.value.trim());
-}
+  enqueueDownload(state.currentVideo.url, state.currentVideo.title, DOM.destInput.value.trim());
+});
 
-function startPlaylistDownload() {
+DOM.playlistStartDownloadBtn.addEventListener('click', () => {
   const checkboxes = document.querySelectorAll('.playlist-checkbox:checked');
   if (checkboxes.length === 0) {
     showToast('Selecione pelo menos um vídeo para baixar.', 'error');
     return;
   }
 
-  state.playlistQueue = [];
   checkboxes.forEach(cb => {
     const idx = cb.value;
-    state.playlistQueue.push(state.currentVideo.videos[idx]);
+    const vid = state.currentVideo.videos[idx];
+    enqueueDownload(vid.url, vid.title, DOM.playlistDestInput.value.trim());
   });
+  showToast('Vídeos da playlist adicionados à fila.', 'info');
+});
 
-  state.playlistTotal = state.playlistQueue.length;
-  state.playlistCurrentIndex = 0;
-  
-  state.isDownloading = true;
-  DOM.playlistStartDownloadBtn.disabled = true;
-  DOM.playlistStartDownloadBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> PREPARANDO...';
-  
-  DOM.progressCard.classList.remove('hidden');
-  DOM.successCard.classList.add('hidden');
-  DOM.progressCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-
-  processPlaylistQueue();
+function generateTaskId() {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2);
 }
 
-function processPlaylistQueue() {
-  if (state.playlistQueue.length === 0) {
-    // Fila terminou
-    DOM.progressCard.classList.add('hidden');
-    DOM.successCard.classList.remove('hidden');
-    DOM.successCard.querySelector('.success-title').textContent = `Playlist Concluída (${state.playlistTotal} vídeos)!`;
-    DOM.successCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    
-    showToast(`Playlist concluída! ${state.playlistTotal} baixados.`, 'success');
-    finishDownloadUI(true);
+function enqueueDownload(targetUrl, targetTitle, targetOutputDir) {
+  const taskId = generateTaskId();
+  const queueItem = {
+    id: taskId,
+    url: targetUrl,
+    title: targetTitle,
+    outputDir: targetOutputDir || state.outputDirectory,
+    format: state.selectedFormat,
+    resolution: state.selectedFormat === 'video' ? (state.selectedResolution ? parseInt(state.selectedResolution) : null) : null,
+    status: 'queued', // queued, downloading, processing, finished, error, cancelled
+    percent: 0,
+    speedStr: '-- MB/s',
+    downloadedStr: '0 MB',
+    totalStr: '0 MB',
+    etaStr: '--:--',
+    filepath: '',
+    socket: null
+  };
+
+  state.queue.push(queueItem);
+  DOM.queueCard.classList.remove('hidden');
+  renderQueue();
+  processQueue();
+}
+
+function renderQueue() {
+  if (state.queue.length === 0) {
+    DOM.queueCard.classList.add('hidden');
     return;
+  } else {
+    DOM.queueCard.classList.remove('hidden');
   }
 
-  state.playlistCurrentIndex++;
-  const nextVideo = state.playlistQueue.shift();
-  startSingleDownload(nextVideo.url, nextVideo.title, DOM.playlistDestInput.value.trim());
+  DOM.queueList.innerHTML = '';
+  state.queue.forEach(item => {
+    const el = document.createElement('div');
+    el.className = 'queue-item';
+
+    let statusText = 'Aguardando';
+    if (item.status === 'downloading') statusText = 'Baixando...';
+    if (item.status === 'processing') statusText = 'Processando...';
+    if (item.status === 'finished') statusText = 'Concluído';
+    if (item.status === 'error') statusText = 'Erro';
+    if (item.status === 'cancelled') statusText = 'Cancelado';
+
+    el.innerHTML = `
+      <div class="queue-item-header">
+        <span class="queue-item-title" title="${item.title}">${item.title}</span>
+        <button class="queue-item-cancel" onclick="cancelQueueItem('${item.id}')" title="Cancelar">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="queue-item-progress-track">
+        <div class="queue-item-progress-fill status-${item.status}" style="width: ${item.percent}%"></div>
+      </div>
+      <div class="queue-item-metrics">
+        <div><strong>${item.percent.toFixed(1)}%</strong> &bull; ${statusText}</div>
+        <div>
+          <span><i class="fa-solid fa-bolt"></i> ${item.speedStr}</span>
+          <span style="margin-left: 10px;"><i class="fa-solid fa-hard-drive"></i> ${item.downloadedStr} / ${item.totalStr}</span>
+        </div>
+      </div>
+    `;
+    DOM.queueList.appendChild(el);
+  });
 }
 
-function startSingleDownload(targetUrl, targetTitle, targetOutputDir) {
-  state.isDownloading = true;
+window.cancelQueueItem = function(id) {
+  const item = state.queue.find(i => i.id === id);
+  if (!item) return;
 
-  if (!state.isPlaylistMode) {
-    DOM.startDownloadBtn.disabled = true;
-    DOM.startDownloadBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> BAIXANDO...';
-    DOM.progressCard.classList.remove('hidden');
-    DOM.successCard.classList.add('hidden');
-    DOM.progressCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  if (item.status === 'downloading' || item.status === 'processing') {
+    // Cancela no backend
+    fetch('/api/cancel', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ task_id: id })
+    }).catch(() => {});
+    
+    if (item.socket) {
+      item.socket.close();
+    }
+    state.activeDownloads--;
   }
 
-  resetProgressUI();
-  if (state.isPlaylistMode) {
-    DOM.progressStatusText.textContent = `[${state.playlistCurrentIndex}/${state.playlistTotal}] Conectando: ${targetTitle}...`;
+  item.status = 'cancelled';
+  renderQueue();
+  processQueue();
+};
+
+DOM.clearQueueBtn.addEventListener('click', () => {
+  // Mantem apenas queued, downloading e processing
+  state.queue = state.queue.filter(item => 
+    item.status === 'queued' || item.status === 'downloading' || item.status === 'processing'
+  );
+  renderQueue();
+});
+
+function processQueue() {
+  // Verifica quantos downloads ativos existem
+  const activeItems = state.queue.filter(i => i.status === 'downloading' || i.status === 'processing');
+  state.activeDownloads = activeItems.length;
+
+  if (state.activeDownloads >= state.maxConcurrent) {
+    return; // Limite atingido
   }
 
-  const media_type = state.selectedFormat;
-  const resolution_height = media_type === 'video' ? (state.selectedResolution ? parseInt(state.selectedResolution) : null) : null;
-  const output_dir = targetOutputDir || state.outputDirectory;
+  // Encontra itens aguardando
+  const queuedItems = state.queue.filter(i => i.status === 'queued');
+  
+  // Inicia downloads até atingir o limite
+  for (let i = 0; i < queuedItems.length; i++) {
+    if (state.activeDownloads >= state.maxConcurrent) break;
+    startQueueDownload(queuedItems[i]);
+    state.activeDownloads++;
+  }
+}
+
+function startQueueDownload(item) {
+  item.status = 'downloading';
+  renderQueue();
 
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
   const wsUrl = `${protocol}//${location.host}/ws/download`;
 
-  state.socket = new WebSocket(wsUrl);
+  item.socket = new WebSocket(wsUrl);
 
-  state.socket.onopen = () => {
+  item.socket.onopen = () => {
     const payload = {
-      url: targetUrl,
-      media_type,
-      resolution_height,
-      output_dir
+      task_id: item.id,
+      url: item.url,
+      media_type: item.format,
+      resolution_height: item.resolution,
+      output_dir: item.outputDir
     };
-    state.socket.send(JSON.stringify(payload));
+    item.socket.send(JSON.stringify(payload));
   };
 
-  state.socket.onmessage = (event) => {
+  item.socket.onmessage = (event) => {
     const data = JSON.parse(event.data);
-    handleSocketMessage(data, targetTitle);
-  };
-
-  state.socket.onerror = () => {
-    showToast('Erro de comunicação com o servidor.', 'error');
-    if (state.isPlaylistMode) {
-      processPlaylistQueue(); // Tenta o próximo mesmo se falhar
-    } else {
-      finishDownloadUI(false);
-    }
-  };
-
-  state.socket.onclose = () => {
-    // If it closed normally but we are still in downloading state without completion, it's an abort
-    if (state.isDownloading && !state.isPlaylistMode) {
-      finishDownloadUI(false);
-    }
-  };
-}
-
-function handleSocketMessage(data, targetTitle) {
-  if (data.type === 'progress') {
-    if (state.isPlaylistMode) {
-      DOM.progressStatusText.textContent = `[${state.playlistCurrentIndex}/${state.playlistTotal}] Baixando...`;
-    } else {
-      DOM.progressStatusText.textContent = `Baixando arquivo...`;
-    }
-    DOM.progressPercent.textContent = `${data.percent}%`;
-    DOM.progressBarFill.style.width = `${data.percent}%`;
     
-    DOM.metricSpeed.textContent = data.speed_str || '-- MB/s';
-    DOM.metricDownloaded.textContent = `${data.downloaded_str} / ${data.total_str}`;
-    DOM.metricEta.textContent = data.eta_str || '--:--';
+    if (data.type === 'progress') {
+      item.status = 'downloading';
+      item.percent = data.percent;
+      item.speedStr = data.speed_str;
+      item.downloadedStr = data.downloaded_str;
+      item.totalStr = data.total_str;
+      item.etaStr = data.eta_str;
+      renderQueue();
 
-  } else if (data.type === 'processing') {
-    if (state.isPlaylistMode) {
-      DOM.progressStatusText.textContent = `[${state.playlistCurrentIndex}/${state.playlistTotal}] Processando...`;
-    } else {
-      DOM.progressStatusText.textContent = data.message || 'Processando com FFmpeg...';
-    }
-    DOM.progressPercent.textContent = '100%';
-    DOM.progressBarFill.style.width = '100%';
-    DOM.metricEta.textContent = 'Finalizando...';
+    } else if (data.type === 'processing') {
+      item.status = 'processing';
+      item.percent = 100;
+      item.etaStr = 'Finalizando...';
+      renderQueue();
 
-  } else if (data.type === 'complete') {
-    state.lastDownloadedPath = data.filepath;
-    
-    addToHistory({
-        title: targetTitle || 'Download',
-        format: state.selectedFormat,
-        resolution: state.selectedResolution,
-        filepath: data.filepath,
-        date: new Date()
-    });
+    } else if (data.type === 'complete') {
+      item.status = 'finished';
+      item.percent = 100;
+      item.filepath = data.filepath;
+      state.lastDownloadedPath = data.filepath;
+      
+      addToHistory({
+          title: item.title,
+          format: item.format,
+          resolution: item.resolution,
+          filepath: data.filepath,
+          date: new Date()
+      });
 
-    if (state.isPlaylistMode) {
-      processPlaylistQueue();
-    } else {
-      DOM.progressCard.classList.add('hidden');
-      DOM.successCard.classList.remove('hidden');
-      DOM.successCard.querySelector('.success-title').textContent = 'Download Concluído com Sucesso!';
-      DOM.successCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      showToast('Download concluído com sucesso!', 'success');
-      finishDownloadUI(true);
-    }
+      if (item.socket) item.socket.close();
+      item.socket = null;
+      state.activeDownloads--;
+      renderQueue();
+      processQueue();
 
-  } else if (data.type === 'error') {
-    const isCancel = data.message.toLowerCase().includes('cancelado');
-    if (isCancel) {
-      // Já mostramos o toast no clique do botão, então não fazemos nada aqui
-    } else {
-      showToast(`Erro no download: ${data.message}`, 'error');
-      if (state.isPlaylistMode && state.playlistQueue.length > 0) {
-        processPlaylistQueue();
+    } else if (data.type === 'error') {
+      const isCancel = data.message.toLowerCase().includes('cancelado');
+      if (isCancel) {
+        item.status = 'cancelled';
       } else {
-        finishDownloadUI(false);
+        item.status = 'error';
+        showToast(`Erro no download: ${data.message}`, 'error');
       }
+      if (item.socket) item.socket.close();
+      item.socket = null;
+      state.activeDownloads--;
+      renderQueue();
+      processQueue();
     }
-  }
-}
+  };
 
-function resetProgressUI() {
-  DOM.progressStatusText.textContent = 'Conectando e iniciando download...';
-  DOM.progressPercent.textContent = '0%';
-  DOM.progressBarFill.style.width = '0%';
-  DOM.metricSpeed.textContent = '-- MB/s';
-  DOM.metricDownloaded.textContent = '0 MB / 0 MB';
-  DOM.metricEta.textContent = '--:--';
-  DOM.cancelDownloadBtn.disabled = false;
-  DOM.cancelDownloadBtn.innerHTML = '<i class="fa-solid fa-xmark"></i> Cancelar';
-}
+  item.socket.onerror = () => {
+    item.status = 'error';
+    if (item.socket) item.socket.close();
+    item.socket = null;
+    state.activeDownloads--;
+    renderQueue();
+    processQueue();
+  };
 
-DOM.cancelDownloadBtn.addEventListener('click', () => {
-  if (!state.isDownloading) return;
-  DOM.cancelDownloadBtn.disabled = true;
-  DOM.cancelDownloadBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Cancelando...';
-  
-  if (state.isPlaylistMode) {
-    state.playlistQueue = []; // Limpa fila
-  }
-  
-  // Aciona cancelamento no backend
-  fetch('/api/cancel', { method: 'POST' }).catch(() => {});
-  
-  // Encerra imediatamente no frontend
-  showToast('Download cancelado.', 'info');
-  finishDownloadUI(false);
-  
-  // Esconde o card de progresso e volta pro preview
-  DOM.progressCard.classList.add('hidden');
-  if (state.isPlaylistMode) {
-    DOM.playlistPreviewCard.classList.remove('hidden');
-  } else {
-    DOM.previewCard.classList.remove('hidden');
-  }
-});
-
-function finishDownloadUI(isSuccess) {
-  state.isDownloading = false;
-  DOM.startDownloadBtn.disabled = false;
-  DOM.startDownloadBtn.innerHTML = '<span class="btn-icon"><i class="fa-solid fa-cloud-arrow-down"></i></span><span class="btn-text">INICIAR DOWNLOAD</span>';
-  
-  DOM.playlistStartDownloadBtn.disabled = false;
-  DOM.playlistStartDownloadBtn.innerHTML = '<span class="btn-icon"><i class="fa-solid fa-list-check"></i></span><span class="btn-text">BAIXAR SELECIONADOS (<span id="playlist-selected-count">0</span>)<br><span id="playlist-estimated-size" style="font-size: 0.8em; opacity: 0.8;">~0 MB</span></span>';
-  updatePlaylistSelectedCount(); // Atualiza a contagem e tamanho
-
-  if (state.socket) {
-    try { state.socket.close(); } catch(e) {}
-    state.socket = null;
-  }
+  item.socket.onclose = () => {
+    if (item.status === 'downloading' || item.status === 'processing') {
+       item.status = 'error';
+       state.activeDownloads--;
+       renderQueue();
+       processQueue();
+    }
+  };
 }
 
 // ==========================================================================
-// 6. AÇÕES AUXILIARES (ABRIR PASTA / NOVO DOWNLOAD)
+// 6. AÇÕES AUXILIARES (ABRIR PASTA / NOVO DOWNLOAD) (ABRIR PASTA / NOVO DOWNLOAD)
 // ==========================================================================
 
 async function openFolder(path) {
@@ -687,21 +690,18 @@ DOM.openDestBtn.addEventListener('click', async () => {
   }
 });
 
-DOM.successOpenBtn.addEventListener('click', () => openFolder(state.lastDownloadedPath));
-
-DOM.successResetBtn.addEventListener('click', clearScreen);
 
 DOM.clearBtn.addEventListener('click', clearScreen);
 
 function clearScreen() {
-  DOM.successCard.classList.add('hidden');
+  
   DOM.previewCard.classList.add('hidden');
   DOM.playlistPreviewCard.classList.add('hidden');
-  DOM.progressCard.classList.add('hidden');
+  
   DOM.urlInput.value = '';
   DOM.urlInput.focus();
   state.currentVideo = null;
-  state.isDownloading = false;
+  
   state.isPlaylistMode = false;
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
