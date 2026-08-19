@@ -164,13 +164,20 @@ async def open_target_folder(req: FolderRequest):
 async def select_folder_dialog():
     try:
         def open_dialog():
+            import ctypes
+            # Inicializa o COM em modo STA para permitir o uso da interface moderna
+            # nativa do Windows (IFileOpenDialog) ao invés da árvore antiga do XP.
+            ctypes.windll.ole32.CoInitialize(None)
+            
             import tkinter as tk
             from tkinter import filedialog
             root = tk.Tk()
             root.withdraw()
             root.attributes('-topmost', True)
-            folder = filedialog.askdirectory(parent=root, title="Selecione a pasta de destino")
+            folder = filedialog.askdirectory(parent=root, title="Selecione a pasta de destino", mustexist=True)
             root.destroy()
+            
+            ctypes.windll.ole32.CoUninitialize()
             return folder
 
         selected_path = await asyncio.to_thread(open_dialog)
